@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 import scrapy
-import redis
 from fake_useragent import UserAgent
 from scrapy.linkextractors import LinkExtractor
 from scrapy.loader import ItemLoader
 from scrapy.loader.processors import Join
 from scrapy.spiders import CrawlSpider
 from scrapy.spiders import Rule
-from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
+
 
 class LianjiaItem(scrapy.Item):
- 
+    # 标签  小区  户型   面积  朝向  装修 关注人数  观看人数  发布时间  价格   均价  详情链接
     title = scrapy.Field()
     community = scrapy.Field()
     model = scrapy.Field()
@@ -29,21 +28,22 @@ class LianjiaSpider(CrawlSpider):
     name = 'lianjia'
     download_delay = 3.0
     ua = UserAgent()
-     
+    # 调试时请使用缓存
     # custom_settings = {'HTTPCACHE_ENABLED': True}
-    start_urls = ['https://bj.lianjia.com/ershoufang/pinggu']
+    start_urls = ['https://bj.lianjia.com/chengjiao/pinggu/']
 
-    #rules = (
-    #    Rule(SgmlLinkExtractor(allow='/chengjiao/pinggu/'), callback='next_page'),
-   # )
+    rules = (
+       # Rule(LinkExtractor(restrict_xpaths=['//div[@data-role="ershoufang"]//a']), callback='next_page'),
+       Rule(LinkExtractor(restrict_xpaths=['//div[@data-role="ershoufang"]//a[@class="selected"]']), callback='next_page'),
+    )
 
-    def parse(self, response):
-
+    def next_page(self, response):
+	
         page_url = response.xpath('//@page-url').extract_first()
-	print "the resonse url is:" + page_url
+	print page_url
         page_data = response.xpath('//@page-data').extract_first()
         total_page = eval(page_data)['totalPage']
-        total_page = 1 
+        #total_page = 2
         for page in range(1, total_page + 1):
             rel_url = page_url.format(page=page)
             yield scrapy.Request(url=response.urljoin(rel_url), callback=self.parse_item,
@@ -66,7 +66,6 @@ class LianjiaSpider(CrawlSpider):
             l.add_xpath('average_price', './/div[@class="unitPrice"]/@data-price')
             l.add_xpath('link', './/div[@class="title"]/a/@href')
             item = l.load_item()
-	 
             yield item
 
 
